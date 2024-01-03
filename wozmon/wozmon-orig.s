@@ -18,7 +18,7 @@ ACIA_CMD    = $5002
 ACIA_CTRL   = $5003
 
 RESET:
-    LDA #$1E                    ; 8-N-1, 9600 baud.
+    LDA #$1F                    ; 8-N-1, 19200 baud.
     STA ACIA_CTRL
     LDA #$0B                    ; No parity, no echo, no interrupts.
     STA ACIA_CMD
@@ -185,7 +185,7 @@ PRHEX:
 ECHO:
     PHA                         ; Save A.
     STA ACIA_DATA               ; Output character.
-    LDA #$C8                    ; Initialize delay loop.
+    LDA #$FF                    ; Initialize delay loop.
 TXDELAY:
     DEC                         ; Decrement A.
     BNE TXDELAY                 ; Until A gets to 0.
