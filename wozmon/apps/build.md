@@ -11,3 +11,17 @@ hexdump -e '"1%03_ax: " 16/1 "%02X " "\n"' a.out | awk '{print toupper($0)}' > a
 ```
 
 
+## ROM
+
+ROM Apps
+
+### LCD Message
+
+Run at: `$8000`
+
+Message Value in Memory: `$3002`
+
+
+### LED blink
+
+

@@ -1,4 +1,189 @@
+PORTB = $6000
+PORTA = $6001
+DDRB = $6002
+DDRA = $6003
+T1CL = $6004
+T1CH = $6005
+ACR = $600B
+IFR = $600D
+IER = $600E
+
+ticks = $00
+toggle_time = $04
+
+LV1 = $3000     ; LED value 1
+MSG = $3002     ; Message buffer LCD
+
+E  = %01000000
+RW = %00100000
+RS = %00010000
+
     .org $8000
+
+lcd_reset:
+  ldx #$ff
+  txs
+
+  lda #%11111111 ; Set all pins on port B to output
+  sta DDRB
+
+  jsr lcd_init
+  lda #%00101000 ; Set 4-bit mode; 2-line display; 5x8 font
+  jsr lcd_instruction
+  lda #%00001110 ; Display on; cursor on; blink off
+  jsr lcd_instruction
+  lda #%00000110 ; Increment and shift cursor; don't shift display
+  jsr lcd_instruction
+  lda #%00000001 ; Clear display
+  jsr lcd_instruction
+
+  ldx #$00
+lcd_print:
+  lda MSG,x
+  beq halt
+  jsr print_char
+  inx
+  jmp lcd_print
+
+halt:
+  jmp $ff00       ; Return to Wozmon
+
+;message: .asciiz "Hello, world!"
+
+lcd_wait:
+  pha
+  lda #%11110000  ; LCD data is input
+  sta DDRB
+lcdbusy:
+  lda #RW
+  sta PORTB
+  lda #(RW | E)
+  sta PORTB
+  lda PORTB       ; Read high nibble
+  pha             ; and put on stack since it has the busy flag
+  lda #RW
+  sta PORTB
+  lda #(RW | E)
+  sta PORTB
+  lda PORTB       ; Read low nibble
+  pla             ; Get high nibble off stack
+  and #%00001000
+  bne lcdbusy
+
+  lda #RW
+  sta PORTB
+  lda #%11111111  ; LCD data is output
+  sta DDRB
+  pla
+  rts
+
+lcd_init:
+  lda #%00000010 ; Set 4-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  rts
+
+lcd_instruction:
+  jsr lcd_wait
+  pha
+  lsr
+  lsr
+  lsr
+  lsr            ; Send high 4 bits
+  sta PORTB
+  ora #E         ; Set E bit to send instruction
+  sta PORTB
+  eor #E         ; Clear E bit
+  sta PORTB
+  pla
+  and #%00001111 ; Send low 4 bits
+  sta PORTB
+  ora #E         ; Set E bit to send instruction
+  sta PORTB
+  eor #E         ; Clear E bit
+  sta PORTB
+  rts
+
+print_char:
+  jsr lcd_wait
+  pha
+  lsr
+  lsr
+  lsr
+  lsr             ; Send high 4 bits
+  ora #RS         ; Set RS
+  sta PORTB
+  ora #E          ; Set E bit to send instruction
+  sta PORTB
+  eor #E          ; Clear E bit
+  sta PORTB
+  pla
+  and #%00001111  ; Send low 4 bits
+  ora #RS         ; Set RS
+  sta PORTB
+  ora #E          ; Set E bit to send instruction
+  sta PORTB
+  eor #E          ; Clear E bit
+  sta PORTB
+  rts
+
+
+    .org $9000
+
+led_reset:
+  lda #%11111111  ; Set all pins on port A to output
+  sta DDRA
+  lda #0
+  sta PORTA
+  sta toggle_time
+  jsr led_init_timer
+
+led_loop:
+  sec
+  lda ticks
+  sbc toggle_time
+  cmp #25         ; Have 250ms elapsed?
+  bcc led_loop
+  lda LV1
+  sta PORTA       ; Toggle LED
+  inc
+  sta LV1
+  lda ticks
+  sta toggle_time
+  jmp led_loop
+
+led_init_timer:
+  lda #0
+  sta ticks
+  sta ticks + 1
+  sta ticks + 2
+  sta ticks + 3
+  lda #%01000000
+  sta ACR
+  lda #$0e
+  sta T1CL
+  lda #$27
+  sta T1CH
+  lda #%11000000
+  sta IER
+  cli
+  rts
+
+irq:
+  bit T1CL
+  inc ticks
+  bne end_irq
+  inc ticks + 1
+  bne end_irq
+  inc ticks + 2
+  bne end_irq
+  inc ticks + 3
+end_irq:
+  rti
+
     .org $ff00
 
 XAML  = $24                     ; Last "opened" location Low
@@ -18,7 +203,7 @@ ACIA_CMD    = $5002
 ACIA_CTRL   = $5003
 
 RESET:
-    LDA #$1E                    ; 8-N-1, 9600 baud.
+    LDA #$1F                    ; 8-N-1, 19200 baud.
     STA ACIA_CTRL
     LDA #$0B                    ; No parity, no echo, no interrupts.
     STA ACIA_CMD
@@ -185,7 +370,7 @@ PRHEX:
 ECHO:
     PHA                         ; Save A.
     STA ACIA_DATA               ; Output character.
-    LDA #$C8                    ; Initialize delay loop.
+    LDA #$FF                    ; Initialize delay loop.
 TXDELAY:
     DEC                         ; Decrement A.
     BNE TXDELAY                 ; Until A gets to 0.
@@ -196,4 +381,4 @@ TXDELAY:
 
     .word   $0F00               ; NMI vector
     .word   RESET               ; RESET vector
-    .word   $0000               ; IRQ vector
+    .word   irq                 ; IRQ vector

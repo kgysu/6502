@@ -1,0 +1,2 @@
+
+  .asciiz "Hello, world!"
