@@ -11,7 +11,7 @@ IER = $600E
 ticks = $00
 toggle_time = $04
 
-LV1 = $3000     ; LED value 1
+LVA = $3000     ; LED start value
 MSG = $3002     ; Message buffer LCD
 
 E  = %01000000
@@ -147,10 +147,10 @@ led_loop:
   sbc toggle_time
   cmp #25         ; Have 250ms elapsed?
   bcc led_loop
-  lda LV1
+  lda LVA
   sta PORTA       ; Toggle LED
   inc
-  sta LV1
+  sta LVA
   lda ticks
   sta toggle_time
   jmp led_loop
