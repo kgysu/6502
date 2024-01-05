@@ -11,7 +11,7 @@ IER = $600E
 ticks = $00
 toggle_time = $04
 
-LVA = $3000     ; LED start value
+LVA = $3000     ; LED value
 MSG = $3002     ; Message buffer LCD
 
 E  = %01000000
@@ -24,7 +24,8 @@ lcd_reset:
   ldx #$ff
   txs
 
-  lda #%11111111 ; Set all pins on port B to output
+  lda #%11111111 ; Set all pins on port A & B to output
+  sta DDRA
   sta DDRB
 
   jsr lcd_init
@@ -38,17 +39,26 @@ lcd_reset:
   jsr lcd_instruction
 
   ldx #$00
+lcd_msg_to_mem:
+  lda message,x
+  sta MSG,x
+  beq lcd_print
+  inx
+  jmp lcd_msg_to_mem
+
 lcd_print:
+  ldx #$00
+lcd_print1:
   lda MSG,x
   beq halt
   jsr print_char
   inx
-  jmp lcd_print
+  jmp lcd_print1
 
 halt:
   jmp $ff00       ; Return to Wozmon
 
-;message: .asciiz "Hello, world!"
+message: .asciiz "Hello, world!                           eater.net/6502"
 
 lcd_wait:
   pha
@@ -78,7 +88,25 @@ lcdbusy:
   rts
 
 lcd_init:
-  lda #%00000010 ; Set 4-bit mode
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00100000 ; Set 4-bit mode
   sta PORTB
   ora #E
   sta PORTB
@@ -130,6 +158,18 @@ print_char:
   sta PORTB
   rts
 
+    .org $8D00
+
+lcd_clear
+  lda #%00000001 ; Clear display
+  jsr lcd_instruction
+  jmp halt
+
+    .org $8F00
+
+  jmp lcd_print
+
+
 
     .org $9000
 
@@ -148,8 +188,8 @@ led_loop:
   cmp #25         ; Have 250ms elapsed?
   bcc led_loop
   lda LVA
-  sta PORTA       ; Toggle LED
   inc
+  sta PORTA       ; Toggle LED
   sta LVA
   lda ticks
   sta toggle_time

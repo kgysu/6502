@@ -32,7 +32,7 @@ print:
 halt:
   jmp $ff00       ; Return to Wozmon
 
-message: .asciiz "Hello, world!"
+message: .asciiz "Hello, world!                           eater.net/6502"
 
 lcd_wait:
   pha
@@ -62,7 +62,25 @@ lcdbusy:
   rts
 
 lcd_init:
-  lda #%00000010 ; Set 4-bit mode
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00000011 ; Set 8-bit mode
+  sta PORTB
+  ora #E
+  sta PORTB
+  and #%00001111
+  sta PORTB
+  lda #%00100000 ; Set 4-bit mode
   sta PORTB
   ora #E
   sta PORTB
